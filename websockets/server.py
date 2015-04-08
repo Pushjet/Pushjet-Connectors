@@ -12,7 +12,7 @@ from twisted.internet import reactor
 import requests
 
 
-errorTemplate = '{"error":{"id":%i,"message":"%s"}}'
+_errorTemplate = '{"error":{"id":%i,"message":"%s"}}'
 
 
 class PushjetProtocol(WebSocketServerProtocol):
@@ -32,12 +32,12 @@ class PushjetProtocol(WebSocketServerProtocol):
 
     def onMessage(self, payload, isBinary):
         if isBinary:
-            message = errorTemplate % (-1, 'Expected text got binary data')
+            message = _errorTemplate % (-1, 'Expected text got binary data')
             self.sendClose(None, message)
         elif self.uuid is not "":  # Already initialized
             return
         elif not PushjetProtocol.isUuid(payload):
-            message = errorTemplate % (1, 'Invalid client uuid')
+            message = _errorTemplate % (1, 'Invalid client uuid')
             self.sendClose(None, message)
         else:  # Initialize ZMQ
             self.uuid = payload
