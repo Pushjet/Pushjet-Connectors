@@ -25,7 +25,7 @@ class PushjetProtocol(WebSocketServerProtocol):
 
     @staticmethod
     def isUuid(s):
-        return PushjetProtocol.uuidRe.match(s) is not None
+        return bool(PushjetProtocol.uuidRe.match(s))
 
     def onConnect(self, request):
         print "New connection:", request.peer
