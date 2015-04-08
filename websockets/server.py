@@ -1,14 +1,16 @@
 #!/usr/bin/env python2.7
 
 from __future__ import unicode_literals
-from autobahn.twisted.websocket import WebSocketServerProtocol,  WebSocketServerFactory
-from txzmq import ZmqEndpoint, ZmqFactory, ZmqSubConnection, ZmqEndpointType
-from twisted.python import log
-from twisted.internet import reactor
 from argparse import ArgumentParser
 from sys import stdout
 from re import compile
+
+from autobahn.twisted.websocket import WebSocketServerProtocol, WebSocketServerFactory
+from txzmq import ZmqEndpoint, ZmqFactory, ZmqSubConnection, ZmqEndpointType
+from twisted.python import log
+from twisted.internet import reactor
 import requests
+
 
 errorTemplate = '{"error":{"id":%i,"message":"%s"}}'
 
@@ -83,12 +85,13 @@ class PushjetProtocol(WebSocketServerProtocol):
             tokens.append(self.uuid)
 
             unsubscribe = [x for x in self.subscriptions if x not in tokens]
-            subscribe   = [x for x in tokens if x not in self.subscriptions]
+            subscribe = [x for x in tokens if x not in self.subscriptions]
             self.subscriptions = tokens
 
             map(self.zmq.unsubscribe, unsubscribe)
             map(self.zmq.subscribe, subscribe)
             print "Successfully updated listens for %s" % self.uuid
+
 
 if __name__ == '__main__':
     parser = ArgumentParser(description='Pushjet websocket server')
