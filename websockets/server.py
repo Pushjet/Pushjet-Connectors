@@ -20,7 +20,7 @@ class PushjetProtocol(WebSocketServerProtocol):
 
     def __init__(self):
         self.zmq = None
-        self.uuid = ""
+        self.uuid = None
         self.subscriptions = []
 
     @staticmethod
@@ -34,7 +34,7 @@ class PushjetProtocol(WebSocketServerProtocol):
         if isBinary:
             message = _errorTemplate % (-1, 'Expected text got binary data')
             self.sendClose(None, message)
-        elif self.uuid is not "":  # Already initialized
+        elif self.uuid:  # Already initialized
             return
         elif not PushjetProtocol.isUuid(payload):
             message = _errorTemplate % (1, 'Invalid client uuid')
