@@ -9,6 +9,7 @@ from autobahn.twisted.websocket import WebSocketServerProtocol, WebSocketServerF
 from txzmq import ZmqEndpoint, ZmqFactory, ZmqSubConnection, ZmqEndpointType
 from twisted.python import log
 from twisted.internet import reactor
+import json
 import requests
 
 
@@ -51,8 +52,15 @@ class PushjetProtocol(WebSocketServerProtocol):
     def onZmqMessage(self, message, tag):
         self.sendMessage(message)
 
-        if tag == self.uuid:
-            self.updateSubscriptionsAsync()
+        decoded = json.loads(message)
+        if 'message' in decoded:
+            self.markReadAsync()
+        if 'listen' in decoded:
+            token = decoded['listen']['service']['public']
+            if token in self.subscriptions:
+                self.unsubscribe(token)
+            else:
+                self.subscribe(token)
 
     def markReadAsync(self):
         self.factory.reactor.callFromThread(self.markRead)
