@@ -55,8 +55,8 @@ class PushjetProtocol(WebSocketServerProtocol):
         decoded = json.loads(message)
         if 'message' in decoded:
             self.markReadAsync()
-        if 'listen' in decoded:
-            token = decoded['listen']['service']['public']
+        if 'listens' in decoded:
+            token = decoded['listens']['service']['public']
             if token in self.subscriptions:
                 self.unsubscribe(token)
             else:
@@ -86,7 +86,8 @@ class PushjetProtocol(WebSocketServerProtocol):
                 self.uuid, listens['error']['id'], listens['error']['message']
             )
         else:
-            tokens = [x['service']['public'] for x in listens['listen']]
+            tokens = [x['service']['public'] for x in 
+listens['listens']]
 
             # Make sure we are always listening to messages that are meant
             # for our client
