@@ -47,9 +47,19 @@ class PushjetProtocol(WebSocketServerProtocol):
             self.zmq.gotMessage = self.onZmqMessage
             self.updateSubscriptionsAsync()
 
-            self.sendMessage("{'status': 'ok'}")
+            self.sendMessage(b"{'status': 'ok'}")
+
+            msg = self.getMessages()
+            print msg
+            for m in msg:
+                self.sendMessage(json.dumps({'message': m}))
+
+    @staticmethod
+    def toAscii(s):
+        return s.encode('ascii', 'ignore')
 
     def onZmqMessage(self, message, tag):
+        print message
         self.sendMessage(message)
 
         decoded = json.loads(message)
@@ -74,6 +84,17 @@ class PushjetProtocol(WebSocketServerProtocol):
                 self.uuid, data['error']['id'], data['error']['message']
             )
 
+    def getMessages(self):
+        url = "%s/message?uuid=%s" % (args.api.rstrip('/'), self.uuid)
+        data = requests.get(url).json()
+
+        if 'error' in data:
+            print "Could fetch messages for %s got error %i: %s" % (
+                self.uuid, data['error']['id'], data['error']['message']
+            )
+            return []
+        return data['messages']
+
     def updateSubscriptionsAsync(self):
         self.factory.reactor.callFromThread(self.updateSubscriptions)
 
@@ -86,15 +107,14 @@ class PushjetProtocol(WebSocketServerProtocol):
                 self.uuid, listens['error']['id'], listens['error']['message']
             )
         else:
-            tokens = [x['service']['public'] for x in 
-listens['listens']]
+            tokens = [x['service']['public'] for x in listens['listens']]
 
             # Make sure we are always listening to messages that are meant
             # for our client
             tokens.append(self.uuid)
 
-            unsubscribe = [x for x in self.subscriptions if x not in tokens]
-            subscribe = [x for x in tokens if x not in self.subscriptions]
+            unsubscribe = [self.toAscii(x) for x in self.subscriptions if x not in tokens]
+            subscribe   = [self.toAscii(x) for x in tokens if x not in self.subscriptions]
             self.subscriptions = tokens
 
             map(self.zmq.unsubscribe, unsubscribe)
