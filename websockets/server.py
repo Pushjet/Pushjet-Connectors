@@ -47,10 +47,9 @@ class PushjetProtocol(WebSocketServerProtocol):
             self.zmq.gotMessage = self.onZmqMessage
             self.updateSubscriptionsAsync()
 
-            self.sendMessage(b"{'status': 'ok'}")
+            self.sendMessage("{'status': 'ok'}")
 
             msg = self.getMessages()
-            print msg
             for m in msg:
                 self.sendMessage(json.dumps({'message': m}))
 
@@ -58,8 +57,11 @@ class PushjetProtocol(WebSocketServerProtocol):
     def toAscii(s):
         return s.encode('ascii', 'ignore')
 
-    def onZmqMessage(self, message, tag):
-        print message
+    def sendMessage(self, payload, **kwargs):
+        return super(WebSocketServerProtocol, self).sendMessage(self.toAscii(payload), **kwargs)
+
+    def onZmqMessage(self, data):
+        tag, message = data.split(' ', 1)
         self.sendMessage(message)
 
         decoded = json.loads(message)
