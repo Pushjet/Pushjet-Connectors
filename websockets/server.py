@@ -16,7 +16,7 @@ import requests
 _errorTemplate = '{"error":{"id":%i,"message":"%s"}}'
 
 
-class PushjetProtocol(WebSocketServerProtocol):
+class PushjetBaseProtocol(object):
     uuidRe = compile(r'^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$')
 
     def __init__(self):
@@ -26,39 +26,7 @@ class PushjetProtocol(WebSocketServerProtocol):
 
     @staticmethod
     def isUuid(s):
-        return bool(PushjetProtocol.uuidRe.match(s))
-
-    def onConnect(self, request):
-        print "New connection:", request.peer
-
-    def onMessage(self, payload, isBinary):
-        if isBinary:
-            message = _errorTemplate % (-1, 'Expected text got binary data')
-            self.sendClose(None, message)
-        elif self.uuid:  # Already initialized
-            return
-        elif not PushjetProtocol.isUuid(payload):
-            message = _errorTemplate % (1, 'Invalid client uuid')
-            self.sendClose(None, message)
-        else:  # Initialize ZMQ
-            self.uuid = payload
-
-            self.zmq = ZmqSubConnection(zmqFactory, zmqEndpoint)
-            self.zmq.gotMessage = self.onZmqMessage
-            self.updateSubscriptionsAsync()
-
-            self.sendMessage("{'status': 'ok'}")
-
-            msg = self.getMessages()
-            for m in msg:
-                self.sendMessage(json.dumps({'message': m}))
-
-    @staticmethod
-    def toAscii(s):
-        return s.encode('ascii', 'ignore')
-
-    def sendMessage(self, payload, **kwargs):
-        return super(WebSocketServerProtocol, self).sendMessage(self.toAscii(payload), **kwargs)
+        return bool(PushjetWebSocket.uuidRe.match(s))
 
     def onZmqMessage(self, data):
         tag, message = data.split(' ', 1)
@@ -70,9 +38,9 @@ class PushjetProtocol(WebSocketServerProtocol):
         if 'listen' in decoded:
             token = decoded['listen']['service']['public']
             if token in self.subscriptions:
-                self.unsubscribe(token)
+                self.zmq.unsubscribe(token)
             else:
-                self.subscribe(token)
+                self.zmq.subscribe(token)
 
     def markReadAsync(self):
         self.factory.reactor.callFromThread(self.markRead)
@@ -123,6 +91,55 @@ class PushjetProtocol(WebSocketServerProtocol):
             map(self.zmq.subscribe, subscribe)
             print "Successfully updated listens for %s" % self.uuid
 
+    def onClientMessage(self, payload, binary=False):
+        if binary:
+            message = _errorTemplate % (-1, 'Expected text got binary data')
+            self.closeConnection(message)
+        elif self.uuid:  # Already initialized
+            return
+        elif not self.isUuid(payload):
+            message = _errorTemplate % (1, 'Invalid client uuid')
+            self.closeConnection(message)
+        else:  # Initialize ZMQ
+            self.uuid = payload
+
+            self.zmq = ZmqSubConnection(zmqFactory, zmqEndpoint)
+            self.zmq.gotMessage = self.onZmqMessage
+            self.updateSubscriptionsAsync()
+
+            self.sendMessage("{'status': 'ok'}")
+
+            msg = self.getMessages()
+            for m in msg:
+                self.sendMessage(json.dumps({'message': m}))
+
+    @staticmethod
+    def toAscii(s):
+        return s.encode('ascii', 'ignore')
+
+    def closeConnection(self, message):
+        raise NotImplementedError()
+
+    def sendMessage(self, message):
+        raise NotImplementedError()
+
+
+class PushjetWebSocket(WebSocketServerProtocol, PushjetBaseProtocol):
+    def __init__(self):
+        super(PushjetBaseProtocol, self).__init__()
+        super(WebSocketServerProtocol, self).__init__()
+        self.onMessage = self.onClientMessage
+
+    def onConnect(self, request):
+        print "New connection:", request.peer
+
+    def sendMessage(self, payload, **kwargs):
+        return super(WebSocketServerProtocol, self).sendMessage(self.toAscii(payload), **kwargs)
+
+    def closeConnection(self, message):
+        self.sendMessage(message)
+        return super(WebSocketServerProtocol, self)._closeConnection()
+
 
 if __name__ == '__main__':
     parser = ArgumentParser(description='Pushjet websocket server')
@@ -150,7 +167,7 @@ if __name__ == '__main__':
     wsUri = 'ws://%s:%i' % (args.host, args.port)
 
     factory = WebSocketServerFactory(wsUri, debug=False)
-    factory.protocol = PushjetProtocol
+    factory.protocol = PushjetWebSocket
 
     zmqFactory = ZmqFactory()
     zmqEndpoint = ZmqEndpoint(ZmqEndpointType.connect, args.pub)
