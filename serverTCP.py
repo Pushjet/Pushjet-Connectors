@@ -4,23 +4,36 @@ from argparse import ArgumentParser
 from sys import stdout
 
 from protocolBase import PushjetProtocolBase
-from twisted.internet import reactor, protocol, endpoints
-from twisted.protocols import basic
+from twisted.internet import reactor, protocol
 from twisted.python import log
 
 
-class PushjetTCPBase(basic.LineOnlyReceiver, PushjetProtocolBase):
-    magic_start = "\002"
-    magic_end   = "\003"
+class PushjetTCPBase(protocol.Protocol, PushjetProtocolBase):
+    magic_start = '\002'
+    magic_end   = '\003'
+    uuid_len    = 36
+    _buffer     = b''
 
     def __init__(self):
         PushjetProtocolBase.__init__(self, args.api, args.pub)
-        self.onMessage = self.lineReceived
-        self.lineReceived = self.onClientMessage
+
+    def dataReceived(self, data):
+        self._buffer += data
+        if len(self._buffer) >= self.uuid_len:
+            frame = self._buffer[:self.uuid_len]
+            self._buffer = self._buffer[self.uuid_len:]
+            print frame
+            self.onClientMessage(frame)
 
     def sendMessage(self, message):
-        self.sendLine(self.magic_start + message + self.magic_end)
+        self.transport.writeSequence((self.magic_start, message, self.magic_end))
 
+
+class PushjetTCPBaseFactory(protocol.Factory):
+    protocol = PushjetTCPBase
+
+    def __init__(self, reactor):
+        self.reactor = reactor
 
 if __name__ == '__main__':
     parser = ArgumentParser(description='Pushjet websocket server')
@@ -43,8 +56,5 @@ if __name__ == '__main__':
         log.startLogging(open(args.logfile, 'a'))
         print("Started logging to file %s" % args.logfile)
 
-    factory = protocol.Factory()
-    factory.protocol = PushjetTCPBase
-
-    endpoints.serverFromString(reactor, str("tcp:%i" % args.port)).listen(factory)
+    reactor.listenTCP(args.port, PushjetTCPBaseFactory(reactor))
     reactor.run()
