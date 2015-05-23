@@ -7,7 +7,7 @@ import requests
 _zmqFactory = ZmqFactory()
 
 
-class PushjetBaseProtocol(object):
+class PushjetProtocolBase(object):
     _uuidRe = compile(r'^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$')
     _errorTemplate = '{"error":{"id":%i,"message":"%s"}}'
 
@@ -20,7 +20,7 @@ class PushjetBaseProtocol(object):
 
     @staticmethod
     def isUuid(s):
-        return bool(PushjetBaseProtocol._uuidRe.match(s))
+        return bool(PushjetProtocolBase._uuidRe.match(s))
 
     def onZmqMessage(self, data):
         tag, message = data.split(' ', 1)

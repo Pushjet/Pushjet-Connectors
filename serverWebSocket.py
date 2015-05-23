@@ -5,14 +5,14 @@ from argparse import ArgumentParser
 from sys import stdout
 
 from autobahn.twisted.websocket import WebSocketServerProtocol, WebSocketServerFactory
-from protocolBase import PushjetBaseProtocol
+from protocolBase import PushjetProtocolBase
 from twisted.python import log
 from twisted.internet import reactor
 
 
-class PushjetWebSocket(WebSocketServerProtocol, PushjetBaseProtocol):
+class PushjetWebSocketBase(WebSocketServerProtocol, PushjetProtocolBase):
     def __init__(self):
-        PushjetBaseProtocol.__init__(self, args.api, args.pub)
+        PushjetProtocolBase.__init__(self, args.api, args.pub)
         WebSocketServerProtocol.__init__(self)
         self.onMessage = self.onClientMessage
 
@@ -53,7 +53,7 @@ if __name__ == '__main__':
     wsUri = 'ws://%s:%i' % (args.host, args.port)
 
     factory = WebSocketServerFactory(wsUri, debug=False)
-    factory.protocol = PushjetWebSocket
+    factory.protocol = PushjetWebSocketBase
 
     reactor.listenTCP(args.port, factory)
     reactor.run()
