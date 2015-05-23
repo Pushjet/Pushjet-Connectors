@@ -1,33 +1,31 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python2
 
 from argparse import ArgumentParser
 from sys import stdout
 
-from autobahn.twisted.websocket import WebSocketServerProtocol, WebSocketServerFactory
 from protocolBase import PushjetProtocolBase
+from twisted.internet import reactor, protocol, endpoints
+from twisted.protocols import basic
 from twisted.python import log
-from twisted.internet import reactor
 
 
-class PushjetWebSocketBase(WebSocketServerProtocol, PushjetProtocolBase):
+class PushjetTCPBase(basic.LineOnlyReceiver, PushjetProtocolBase):
+    magic_start = "\002"
+    magic_end   = "\003"
+
     def __init__(self):
         PushjetProtocolBase.__init__(self, args.api, args.pub)
-        WebSocketServerProtocol.__init__(self)
-        self.onMessage = self.onClientMessage
+        self.onMessage = self.lineReceived
+        self.lineReceived = self.onClientMessage
 
-    def onConnect(self, request):
-        print "New connection:", request.peer
-
-    def sendMessage(self, payload, **kwargs):
-        return super(WebSocketServerProtocol, self).sendMessage(self.toAscii(payload), **kwargs)
+    def sendMessage(self, message):
+        self.sendLine(self.magic_start + message + self.magic_end)
 
 
 if __name__ == '__main__':
     parser = ArgumentParser(description='Pushjet websocket server')
 
-    parser.add_argument('--host', '-u', default='127.0.0.1', type=str,
-                        help='the host the server should bind to (default: 127.0.0.1, this is sane)')
-    parser.add_argument('--port', '-p', default='8181', type=int,
+    parser.add_argument('--port', '-p', default='7171', type=int,
                         help='the port the server should bind to (default: 8181)')
     parser.add_argument('--api', '-a', default='https://api.pushjet.io', type=str, metavar='SRV',
                         help='the api server url (default: https://api.pushjet.io)')
@@ -45,10 +43,8 @@ if __name__ == '__main__':
         log.startLogging(open(args.logfile, 'a'))
         print("Started logging to file %s" % args.logfile)
 
-    wsUri = 'ws://%s:%i' % (args.host, args.port)
+    factory = protocol.Factory()
+    factory.protocol = PushjetTCPBase
 
-    factory = WebSocketServerFactory(wsUri, debug=False)
-    factory.protocol = PushjetWebSocketBase
-
-    reactor.listenTCP(args.port, factory)
+    endpoints.serverFromString(reactor, str("tcp:%i" % args.port)).listen(factory)
     reactor.run()

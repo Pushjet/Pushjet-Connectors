@@ -88,12 +88,12 @@ class PushjetProtocolBase(object):
     def onClientMessage(self, payload, binary=False):
         if binary:
             message = self._errorTemplate % (-1, 'Expected text got binary data')
-            self.closeConnection(message)
+            self.sendMessage(message)
         elif self.uuid:  # Already initialized
             return
         elif not self.isUuid(payload):
             message = self._errorTemplate % (1, 'Invalid client uuid')
-            self.closeConnection(message)
+            self.sendMessage(message)
         else:  # Initialize ZMQ
             self.uuid = payload
 
@@ -110,9 +110,6 @@ class PushjetProtocolBase(object):
     @staticmethod
     def toAscii(s):
         return s.encode('ascii', 'ignore')
-
-    def closeConnection(self, message):
-        raise NotImplementedError()
 
     def sendMessage(self, message):
         raise NotImplementedError()
