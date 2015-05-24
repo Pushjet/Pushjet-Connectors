@@ -101,7 +101,7 @@ class PushjetProtocolBase(object):
             self.zmq.gotMessage = self.onZmqMessage
             self.updateSubscriptionsAsync()
 
-            self.sendMessage("{'status': 'ok'}")
+            self.sendMessage('{"status": "ok"}')
 
             msg = self.getMessages()
             for m in msg:
