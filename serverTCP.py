@@ -39,7 +39,7 @@ if __name__ == '__main__':
     parser = ArgumentParser(description='Pushjet websocket server')
 
     parser.add_argument('--port', '-p', default='7171', type=int,
-                        help='the port the server should bind to (default: 8181)')
+                        help='the port the server should bind to (default: 7171)')
     parser.add_argument('--api', '-a', default='https://api.pushjet.io', type=str, metavar='SRV',
                         help='the api server url (default: https://api.pushjet.io)')
     parser.add_argument('--pub', '-z', default='ipc:///tmp/pushjet-publisher.ipc', type=str,
