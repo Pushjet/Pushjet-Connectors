@@ -29,8 +29,8 @@ class PushjetProtocolBase(object):
         decoded = json.loads(message)
         if 'message' in decoded:
             self.markReadAsync()
-        if 'listen' in decoded:
-            token = decoded['listen']['service']['public']
+        if 'subscription' in decoded:
+            token = decoded['subscription']['service']['public']
             if token in self.subscriptions:
                 self.zmq.unsubscribe(token)
             else:
@@ -63,17 +63,17 @@ class PushjetProtocolBase(object):
         self.factory.reactor.callFromThread(self.updateSubscriptions)
 
     def updateSubscriptions(self):
-        url = "%s/listen?uuid=%s" % (self.api, self.uuid)
-        listens = requests.get(url).json()
+        url = "%s/subscription?uuid=%s" % (self.api, self.uuid)
+        subscriptions = requests.get(url).json()
 
-        if 'error' in listens:
-            print "Could not fetch listens for %s got error %i: %s" % (
-                self.uuid, listens['error']['id'], listens['error']['message']
+        if 'error' in subscriptions:
+            print "Could not fetch subscriptions for %s got error %i: %s" % (
+                self.uuid, subscriptions['error']['id'], subscriptions['error']['message']
             )
         else:
-            tokens = [x['service']['public'] for x in listens['listens']]
+            tokens = [x['service']['public'] for x in subscriptions['subscriptions']]
 
-            # Make sure we are always listening to messages that are meant
+            # Make sure we are always subscriptioning to messages that are meant
             # for our client
             tokens.append(self.uuid)
 
@@ -83,7 +83,7 @@ class PushjetProtocolBase(object):
 
             map(self.zmq.unsubscribe, unsubscribe)
             map(self.zmq.subscribe, subscribe)
-            print "Successfully updated listens for %s" % self.uuid
+            print "Successfully updated subscriptions for %s" % self.uuid
 
     def onClientMessage(self, payload, binary=False):
         if binary:
